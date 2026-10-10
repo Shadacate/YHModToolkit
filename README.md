@@ -1,49 +1,37 @@
+# YOMIH Toolkit Panel
 
-# YHModAssistant
-[![GPLv3 License](https://img.shields.io/badge/License-GPL%20v3-yellow.svg)](https://opensource.org/licenses/)
-![Downloads total](https://img.shields.io/github/downloads/Valkarin1029/YHModAssistant/total)
+A Godot 3.5 editor panel for making characters for *Your Only Move Is HUSTLE*. It sits in
+the editor's bottom panel and is a front-end for the
+[YOMIH character toolkit](https://github.com/Shadacate/YOMIH-character-toolkit): every
+button runs the toolkit's command line (`yct`) and shows what it printed.
 
-YHMod Assistant is a Godot plugin to help with the creations of mods for YOMI Hustle (Your Only Move Is Hustle)
+This is a fork of [YH Mod Assistant](https://github.com/Valkarin1029/YHModAssistant) by
+Valkarin, and is licensed GPL-3.0 like the original (see `LICENSE`). The original's own
+screens (New Mod, Mod Info, Export, Overwrites) have been removed here, because the
+toolkit does those jobs and two ways of doing them would disagree. Use the original if
+you want them.
 
-Like my plugin? Support me. It gives me a big boost to keep improving this.
+**Status: early.** What works today:
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/G2G3I6PI5)
+- Setup: say where the toolkit and Python are, and check the environment.
+- Characters: list them, create a new one (it is linked into the project straight away).
+- For the selected character: link into the project, export art from Aseprite, switch to
+  its own sprites, build the mod zip.
 
-## Authors
-- [@Valkarin1029](https://www.github.com/Valkarin1029)
+Not built yet: adding moves from patterns with each setting explained, editing an
+existing move, installing the zip into the game.
 
-## Features
+## Requirements
 
-- Export System
-	- Auto Export when the debuger is ran for quick testing
-- Project Templates
-	- Blank Template
-	- Character Template
-	- Overwrite Template
+- The YOMIH character toolkit and Python 3.10 or newer.
+- A Godot 3.5.1 project recovered from the game.
 
+## Install
 
-**Suggest New Features in Issues as feature suggestion**
+1. Put (or link) this repository's `addons/YHMA` folder at `addons/YHMA` in the game
+   project.
+2. Enable "YOMIH Toolkit Panel" in Project > Project Settings > Plugins.
+3. Open the "YOMIH Toolkit" tab in the bottom panel, set the toolkit folder, and press
+   "Save and check".
 
-## Installation
-
-### Intructions
-1. Install the latest release from (https://github.com/Valkarin1029/YHModAssistant/releases)
-2. Navigate to your Yomi Hustle Decompiled Folder
-3. Go to the addons Folder
-4. Extract the zip you downloaded in the addons folder
-5. make sure that the YHMA folder is the one in the addons folder
-6. Enable the plugin in godot project settings
-
-If done correctly a new dock should appear to the right of the file system dock
-
-## Feedback
-If you have any feedback you can leave them in the [issues](https://github.com/Valkarin1029/YHModAssistant/issues). Use the right tags pls
-
-### FAQ
-**Q:** 
-> Unable to load addon script from path: 'res://addons/YHModAssistant-main/plugin.gd'. 
-> 
-> This might be due to a code error in that script.
-Disabling the addon at 'res://addons/YHModAssistant-main/plugin.cfg' to prevent further errors.
-
-**A:** This is commonly caused by clone the repositry. For some reason if you clone the repositry you get this error. Go to the releases tab and download it there
+Settings are kept in the per-user config folder (`%APPDATA%\YHMA` on Windows).

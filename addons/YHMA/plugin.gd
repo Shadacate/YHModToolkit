@@ -1,39 +1,21 @@
 tool
 extends EditorPlugin
 
-var dock = preload("res://addons/YHMA/YHmain.tscn").instance()
+# Adds the YOMIH Toolkit panel to the editor's bottom panel, beside Output and Debugger.
 
-const AUTOLOAD_NAME = "ExportOnRun"
+const ToolkitPanel = preload("res://addons/YHMA/toolkit/Panel.gd")
+
+var panel = null
+
 
 func _enter_tree():
-	
-	add_control_to_dock(EditorPlugin.DOCK_SLOT_LEFT_BR, dock)
-	
-	pass
-
+	panel = ToolkitPanel.new()
+	panel.editor_plugin = self
+	add_control_to_bottom_panel(panel, "YOMIH Toolkit")
 
 
 func _exit_tree():
-	
-	remove_control_from_docks(dock)
-	
-	dock.free()
-	
-	pass
-
-
-func build():
-	var autoExport = dock.find_node("AutoExport")
-	var Export = dock.find_node("Export")
-	var exportSuccess = false
-	
-	if autoExport == null:
-		printerr("[YHMA] Auto Export Button not found")
-		return false
-	
-	if autoExport.pressed:
-		exportSuccess = Export._on_Export_pressed()
-	else:
-		exportSuccess = true
-	
-	return exportSuccess
+	if panel != null:
+		remove_control_from_bottom_panel(panel)
+		panel.queue_free()
+		panel = null
