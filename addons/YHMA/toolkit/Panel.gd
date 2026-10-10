@@ -5,7 +5,8 @@ extends VBoxContainer
 #
 # A front-end only: every button runs the toolkit's command line (yct) and shows what it
 # printed. Nothing about a character is decided or stored here, so the panel and the
-# command line can never disagree.
+# command line can never disagree. The explanations shown beside a move's settings are
+# the toolkit's own (yct explain), not a second copy.
 
 const SETTINGS_FILE = "toolkit.cfg"
 
@@ -20,16 +21,28 @@ var output: TextEdit
 var status_label: Label
 var characters = []
 
+# Moves tab
+var pattern_pick: OptionButton
+var pattern_about: Label
+var move_id_edit: LineEdit
+var move_title_edit: LineEdit
+var param_box: VBoxContainer
+var param_edits = {}
+var patterns = []       # move patterns, as yct lists them
+var attributes = {}     # setting name -> its explanation, from yct explain
+var concepts = []       # startup, active, recovery ... from yct explain
+
 
 func _init():
 	name = "YOMIH Toolkit"
-	rect_min_size = Vector2(0, 280)
+	rect_min_size = Vector2(0, 330)
 	_build()
 
 
 func _ready():
 	_load_settings()
 	refresh_characters()
+	refresh_patterns()
 
 
 # -- layout -------------------------------------------------------------------
@@ -40,55 +53,29 @@ func _build():
 	split.size_flags_vertical = SIZE_EXPAND_FILL
 	add_child(split)
 
-	var scroll = ScrollContainer.new()
-	scroll.rect_min_size = Vector2(520, 0)
-	scroll.scroll_horizontal_enabled = false
-	split.add_child(scroll)
-
 	var left = VBoxContainer.new()
-	left.size_flags_horizontal = SIZE_EXPAND_FILL
-	scroll.add_child(left)
+	left.rect_min_size = Vector2(760, 0)
+	split.add_child(left)
 
-	_heading(left, "Setup")
+	# The character the buttons act on stays visible above both tabs.
 	var row = _row(left)
-	_label(row, "Toolkit folder")
-	toolkit_edit = _edit(row, "the folder that contains yct.py",
-			"Where the YOMIH character toolkit is on this computer.")
-	row = _row(left)
-	_label(row, "Python")
-	python_edit = _edit(row, "python", "The command that starts Python 3.10 or newer. Usually just: python")
-	_button(row, "Save and check", "Save these two settings, then check that the game, the game project, "
-			+ "the Godot editor and Aseprite can all be found.", "_on_save_and_check")
-
-	_heading(left, "Characters")
-	row = _row(left)
+	_label(row, "Character")
 	character_pick = OptionButton.new()
 	character_pick.size_flags_horizontal = SIZE_EXPAND_FILL
 	character_pick.hint_tooltip = "The character the buttons below act on."
 	row.add_child(character_pick)
-	_button(row, "Refresh", "Read the list of characters again.", "refresh_characters")
+	_button(row, "Refresh", "Read the characters and patterns again.", "_on_refresh")
 
-	row = _row(left)
-	new_id_edit = _edit(row, "id, e.g. quick_fox",
-			"A short name for files and folders: lowercase letters, digits and underscores.")
-	new_name_edit = _edit(row, "Name shown in the game", "The character's name as players will see it.")
-	_button(row, "New character", "Create a character the game can load and select, and link its folder "
-			+ "into this project so it appears under res://.", "_on_new_character")
-
-	_heading(left, "Selected character")
-	row = _row(left)
-	_button(row, "Link into this project", "Make the character's mod folder appear in this project under "
-			+ "res://, so it can be edited here. Nothing is copied.", "_on_action", ["link"])
-	_button(row, "Export art", "Turn the character's Aseprite files into the frames and animations the "
-			+ "game loads. Each tag in Aseprite becomes one animation.", "_on_action", ["export"])
-	row = _row(left)
-	_button(row, "Use own sprites", "Make the character draw with its exported art instead of the base "
-			+ "game's stickman. Needed once, after the first export.", "_on_own_sprites")
-	_button(row, "Build zip", "Build the mod zip the game loads. Copy it into the game's mods folder "
-			+ "to test.", "_on_action", ["package"])
+	var tabs = TabContainer.new()
+	tabs.size_flags_horizontal = SIZE_EXPAND_FILL
+	tabs.size_flags_vertical = SIZE_EXPAND_FILL
+	left.add_child(tabs)
+	_build_character_tab(_tab(tabs, "Character"))
+	_build_moves_tab(_tab(tabs, "Moves"))
+	_build_setup_tab(_tab(tabs, "Setup"))
 
 	status_label = Label.new()
-	status_label.autowrap = true
+	status_label.clip_text = true
 	left.add_child(status_label)
 
 	output = TextEdit.new()
@@ -100,12 +87,72 @@ func _build():
 	split.add_child(output)
 
 
-func _heading(parent, text):
-	var label = Label.new()
-	label.text = text
-	label.add_color_override("font_color", Color(0.65, 0.8, 1.0))
-	parent.add_child(label)
-	parent.add_child(HSeparator.new())
+func _tab(tabs, title):
+	var scroll = ScrollContainer.new()
+	scroll.name = title
+	scroll.scroll_horizontal_enabled = false
+	tabs.add_child(scroll)
+	var box = VBoxContainer.new()
+	box.size_flags_horizontal = SIZE_EXPAND_FILL
+	scroll.add_child(box)
+	return box
+
+
+func _build_character_tab(box):
+	var row = _row(box)
+	_label(row, "New")
+	new_id_edit = _edit(row, "id, e.g. quick_fox",
+			"A short name for files and folders: lowercase letters, digits and underscores.")
+	new_name_edit = _edit(row, "Name shown in the game", "The character's name as players will see it.")
+	_button(row, "New character", "Create a character the game can load and select, and link its folder "
+			+ "into this project so it appears under res://.", "_on_new_character")
+
+	row = _row(box)
+	_label(row, "Selected")
+	_button(row, "Link into this project", "Make the character's mod folder appear in this project under "
+			+ "res://, so it can be edited here. Nothing is copied.", "_on_action", ["link"])
+	_button(row, "Export art", "Turn the character's Aseprite files into the frames and animations the "
+			+ "game loads. Each tag in Aseprite becomes one animation.", "_on_action", ["export"])
+	_button(row, "Use own sprites", "Make the character draw with its exported art instead of the base "
+			+ "game's stickman. Needed once, after the first export.", "_on_own_sprites")
+	_button(row, "Build zip", "Build the mod zip the game loads. Copy it into the game's mods folder "
+			+ "to test.", "_on_action", ["package"])
+
+
+func _build_moves_tab(box):
+	var row = _row(box)
+	_label(row, "Kind of move")
+	pattern_pick = OptionButton.new()
+	pattern_pick.rect_min_size = Vector2(190, 0)
+	pattern_pick.hint_tooltip = "A pattern is a kind of move that has been built and tested once, kept as a template."
+	pattern_pick.connect("item_selected", self, "_on_pattern_selected")
+	row.add_child(pattern_pick)
+	move_id_edit = _edit(row, "id, e.g. jab", "A short name for the move: lowercase letters, digits and "
+			+ "underscores. Its animation is the Aseprite tag of the same name in CamelCase (jab -> Jab).")
+	move_title_edit = _edit(row, "Name shown in the game", "The move's name on its button in the game.")
+	_button(row, "Add move", "Add this move to the selected character, with the settings below. "
+			+ "Empty settings use the default shown in grey.", "_on_add_move")
+
+	pattern_about = Label.new()
+	pattern_about.autowrap = true
+	box.add_child(pattern_about)
+	box.add_child(HSeparator.new())
+
+	param_box = VBoxContainer.new()
+	param_box.size_flags_horizontal = SIZE_EXPAND_FILL
+	box.add_child(param_box)
+
+
+func _build_setup_tab(box):
+	var row = _row(box)
+	_label(row, "Toolkit folder")
+	toolkit_edit = _edit(row, "the folder that contains yct.py",
+			"Where the YOMIH character toolkit is on this computer.")
+	row = _row(box)
+	_label(row, "Python")
+	python_edit = _edit(row, "python", "The command that starts Python 3.10 or newer. Usually just: python")
+	_button(row, "Save and check", "Save these two settings, then check that the game, the game project, "
+			+ "the Godot editor and Aseprite can all be found.", "_on_save_and_check")
 
 
 func _row(parent):
@@ -115,11 +162,12 @@ func _row(parent):
 	return row
 
 
-func _label(parent, text):
+func _label(parent, text, width = 100):
 	var label = Label.new()
 	label.text = text
-	label.rect_min_size = Vector2(100, 0)
+	label.rect_min_size = Vector2(width, 0)
 	parent.add_child(label)
+	return label
 
 
 func _edit(parent, placeholder, tip):
@@ -176,7 +224,7 @@ func run_yct(args, quiet = false):
 	var folder = toolkit_edit.text.strip_edges()
 	var script = folder.plus_file("yct.py")
 	if folder == "" or not File.new().file_exists(script):
-		_say("Set the toolkit folder first: the folder that contains yct.py.")
+		_say("Set the toolkit folder on the Setup tab first: the folder that contains yct.py.")
 		return {"code": -1, "text": ""}
 	var python = python_edit.text.strip_edges()
 	if python == "":
@@ -192,6 +240,17 @@ func run_yct(args, quiet = false):
 	if not quiet:
 		_say("> yct %s\n%s\n[exit code %d]\n" % [PoolStringArray(args).join(" "), text.strip_edges(), code])
 	return {"code": code, "text": text}
+
+
+func _read_json(args, what):
+	var result = run_yct(args, true)
+	if result.code != 0:
+		return null
+	var parsed = JSON.parse(result.text)
+	if parsed.error != OK:
+		_say("Could not read %s:\n%s" % [what, result.text])
+		return null
+	return parsed.result
 
 
 func _say(text):
@@ -218,15 +277,11 @@ func refresh_characters():
 		keep = characters[character_pick.selected]["id"]
 	character_pick.clear()
 	characters = []
-	var result = run_yct(["characters", "--json"], true)
-	if result.code != 0:
-		status_label.text = "Character list not read yet."
+	var listing = _read_json(["characters", "--json"], "the character list")
+	if not (listing is Array):
+		status_label.text = "Character list not read yet. Check the Setup tab."
 		return
-	var parsed = JSON.parse(result.text)
-	if parsed.error != OK or not (parsed.result is Array):
-		_say("Could not read the character list:\n" + result.text)
-		return
-	characters = parsed.result
+	characters = listing
 	for i in range(characters.size()):
 		var c = characters[i]
 		character_pick.add_item("%s  (%s, %s)" % [c["display_name"], c["id"], c["link"]])
@@ -235,13 +290,133 @@ func refresh_characters():
 	status_label.text = "%d character(s) in %s" % [characters.size(), toolkit_edit.text.strip_edges()]
 
 
+func _select_character(id):
+	for i in range(characters.size()):
+		if characters[i]["id"] == id:
+			character_pick.select(i)
+
+
+# -- moves --------------------------------------------------------------------
+
+func refresh_patterns():
+	patterns = []
+	attributes = {}
+	concepts = []
+	pattern_pick.clear()
+	var reference = _read_json(["explain", "--json"], "the explanations")
+	if reference is Dictionary:
+		for attribute in reference.get("attributes", []):
+			attributes[attribute["name"]] = attribute
+		concepts = reference.get("concepts", [])
+	var listing = _read_json(["pattern", "list", "--json"], "the patterns")
+	if not (listing is Array):
+		pattern_about.text = "Patterns not read yet. Check the Setup tab."
+		return
+	for spec in listing:
+		if spec.get("scope", "move") == "move":
+			patterns.append(spec)
+			pattern_pick.add_item(spec["title"])
+	if patterns.size() > 0:
+		pattern_pick.select(0)
+		_on_pattern_selected(0)
+
+
+func _on_pattern_selected(index):
+	for child in param_box.get_children():
+		param_box.remove_child(child)
+		child.queue_free()
+	param_edits = {}
+	if index < 0 or index >= patterns.size():
+		return
+	var spec = patterns[index]
+	var proven = "Seen working in the game." if spec["verified"]["in_game"] else "NOT yet seen working in the game."
+	pattern_about.text = "%s  %s" % [spec["description"], proven]
+	for param_name in spec["parameters"]:
+		var param = spec["parameters"][param_name]
+		var row = _row(param_box)
+		_label(row, param_name, 120)
+		var edit = LineEdit.new()
+		edit.rect_min_size = Vector2(110, 0)
+		var default_text = str(param["default"])
+		if default_text.find("{{") != -1:
+			default_text = "(from the move's id)"
+		elif default_text == "":
+			default_text = "(none)"
+		edit.placeholder_text = default_text
+		row.add_child(edit)
+		param_edits[param_name] = edit
+
+		var text = param["description"]
+		var tip = param["description"]
+		var explains = param.get("explains", "")
+		if attributes.has(explains):
+			var attribute = attributes[explains]
+			tip = "%s\n\nIn the game this is %s on the %s.\n%s\n%s\n\nDefault in the game: %s. Read from: %s" % [
+					param["description"], attribute["name"],
+					"hitbox" if attribute["on"] == "Hitbox" else "move's state",
+					attribute["summary"], attribute["detail"], attribute["default"], attribute["source"]]
+			text += "  [%s]" % attribute["name"]
+		edit.hint_tooltip = tip
+		var about = Label.new()
+		about.text = text
+		about.clip_text = true
+		about.hint_tooltip = tip
+		about.mouse_filter = MOUSE_FILTER_STOP   # so hovering the text shows the full explanation
+		about.size_flags_horizontal = SIZE_EXPAND_FILL
+		row.add_child(about)
+
+	# The three parts of an attack, and the other terms, as one line each.
+	if concepts.size() > 0:
+		param_box.add_child(HSeparator.new())
+		for concept in concepts:
+			var line = Label.new()
+			line.text = "%s: %s" % [concept["term"], concept["explanation"]]
+			line.clip_text = true
+			line.hint_tooltip = "%s\n\n%s\n\nHow to set it: %s" % [concept["term"], concept["explanation"], concept["how"]]
+			line.mouse_filter = MOUSE_FILTER_STOP
+			line.add_color_override("font_color", Color(0.65, 0.8, 1.0))
+			param_box.add_child(line)
+
+
+func _on_add_move():
+	var character = _selected_id()
+	if character == "":
+		return
+	var index = pattern_pick.selected
+	if index < 0 or index >= patterns.size():
+		_say("No kind of move is selected.")
+		return
+	var move_id = move_id_edit.text.strip_edges()
+	var title = move_title_edit.text.strip_edges()
+	if move_id == "" or title == "":
+		_say("Fill in both the move's id and the name shown in the game.")
+		return
+	var args = ["pattern", "apply", patterns[index]["id"], "%s.%s" % [character, move_id], "--name", title]
+	for param_name in param_edits:
+		var value = param_edits[param_name].text.strip_edges()
+		if value != "":
+			args.append("--set")
+			args.append("%s=%s" % [param_name, value])
+	if run_yct(args).code == 0:
+		move_id_edit.text = ""
+		move_title_edit.text = ""
+		for param_name in param_edits:
+			param_edits[param_name].text = ""
+		_rescan()
+
+
 # -- buttons ------------------------------------------------------------------
+
+func _on_refresh():
+	refresh_characters()
+	refresh_patterns()
+
 
 func _on_save_and_check():
 	if not _save_settings():
 		_say("Could not save the settings to " + _settings_dir())
 	run_yct(["env"])
-	refresh_characters()
+	_on_refresh()
 
 
 func _on_new_character():
@@ -256,9 +431,7 @@ func _on_new_character():
 	new_id_edit.text = ""
 	new_name_edit.text = ""
 	refresh_characters()
-	for i in range(characters.size()):
-		if characters[i]["id"] == id:
-			character_pick.select(i)
+	_select_character(id)
 	_rescan()
 
 
