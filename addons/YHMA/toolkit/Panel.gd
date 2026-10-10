@@ -32,6 +32,12 @@ var patterns = []       # move patterns, as yct lists them
 var attributes = {}     # setting name -> its explanation, from yct explain
 var concepts = []       # startup, active, recovery ... from yct explain
 
+# Game moves tab
+var game_character_pick: OptionButton
+var game_move_pick: OptionButton
+var game_characters = []    # the game's own characters, from yct game characters
+var game_moves = []         # the picked character's moves, from yct game moves
+
 
 func _init():
 	name = "YOMIH Toolkit"
@@ -43,6 +49,7 @@ func _ready():
 	_load_settings()
 	refresh_characters()
 	refresh_patterns()
+	refresh_game_characters()
 
 
 # -- layout -------------------------------------------------------------------
@@ -72,6 +79,7 @@ func _build():
 	left.add_child(tabs)
 	_build_character_tab(_tab(tabs, "Character"))
 	_build_moves_tab(_tab(tabs, "Moves"))
+	_build_game_moves_tab(_tab(tabs, "Game moves"))
 	_build_setup_tab(_tab(tabs, "Setup"))
 
 	status_label = Label.new()
@@ -141,6 +149,32 @@ func _build_moves_tab(box):
 	param_box = VBoxContainer.new()
 	param_box.size_flags_horizontal = SIZE_EXPAND_FILL
 	box.add_child(param_box)
+
+
+func _build_game_moves_tab(box):
+	var about = Label.new()
+	about.autowrap = true
+	about.text = ("See how one of the game's own characters does a move: its length, when its hitbox is on, "
+			+ "its damage, hitstun and the rest, each explained. Use it as the reference for your own moves. "
+			+ "This only reads the game project; nothing is changed or copied.")
+	box.add_child(about)
+
+	var row = _row(box)
+	_label(row, "Game character")
+	game_character_pick = OptionButton.new()
+	game_character_pick.rect_min_size = Vector2(150, 0)
+	game_character_pick.hint_tooltip = "One of the characters that come with the game."
+	game_character_pick.connect("item_selected", self, "_on_game_character_selected")
+	row.add_child(game_character_pick)
+	_label(row, "Move", 40)
+	game_move_pick = OptionButton.new()
+	game_move_pick.size_flags_horizontal = SIZE_EXPAND_FILL
+	game_move_pick.clip_text = true
+	game_move_pick.hint_tooltip = ("The character's moves: the name on the move's button in the game, then its "
+			+ "name in the scene. States with no button name are listed after the named ones.")
+	row.add_child(game_move_pick)
+	_button(row, "Show move", "Show this move's settings and hitboxes on the right, with what each one means. "
+			+ "If the move fires a projectile, the projectile is shown too.", "_on_show_game_move")
 
 
 func _build_setup_tab(box):
@@ -405,11 +439,63 @@ func _on_add_move():
 		_rescan()
 
 
+# -- game moves ---------------------------------------------------------------
+
+func refresh_game_characters():
+	game_characters = []
+	game_character_pick.clear()
+	game_move_pick.clear()
+	game_moves = []
+	var listing = _read_json(["game", "characters", "--json"], "the game's characters")
+	if not (listing is Array):
+		return
+	game_characters = listing
+	for entry in game_characters:
+		game_character_pick.add_item(entry["name"])
+	if game_characters.size() > 0:
+		game_character_pick.select(0)
+		_on_game_character_selected(0)
+
+
+func _on_game_character_selected(index):
+	game_move_pick.clear()
+	game_moves = []
+	if index < 0 or index >= game_characters.size():
+		return
+	var listing = _read_json(["game", "moves", game_characters[index]["name"], "--json"], "the character's moves")
+	if not (listing is Dictionary):
+		return
+	var unnamed = []
+	for move in listing.get("moves", []):
+		if move["title"] == null:
+			unnamed.append(move)
+		else:
+			game_moves.append(move)
+			game_move_pick.add_item("%s  (%s)" % [move["title"], move["node"]])
+	for move in unnamed:
+		game_moves.append(move)
+		game_move_pick.add_item(move["node"])
+	if game_moves.size() > 0:
+		game_move_pick.select(0)
+
+
+func _on_show_game_move():
+	var character = game_character_pick.selected
+	var move = game_move_pick.selected
+	if character < 0 or character >= game_characters.size() or move < 0 or move >= game_moves.size():
+		_say("Pick a game character and a move first. If the lists are empty, check the Setup tab.")
+		return
+	output.text = ""    # a move is long; start it at the top
+	run_yct(["game", "show", game_characters[character]["name"], game_moves[move]["node"]])
+	output.cursor_set_line(0)
+
+
 # -- buttons ------------------------------------------------------------------
 
 func _on_refresh():
 	refresh_characters()
 	refresh_patterns()
+	refresh_game_characters()
 
 
 func _on_save_and_check():
