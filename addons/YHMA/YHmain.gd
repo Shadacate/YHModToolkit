@@ -7,7 +7,9 @@ signal re_open_last()
 signal settings_updated()
 signal new_update(prerelease)
 
-var tempDirPath = "C:/temp/YHMA"
+# Where settings.json and SaveData.cfg live. This was hard-coded to C:/temp/YHMA, which
+# fails on a machine with no C:/temp folder. The per-user config folder always exists.
+var tempDirPath = OS.get_config_dir().plus_file("YHMA")
 var PLUGIN_VERSION
 
 var current_mod_path
@@ -54,21 +56,24 @@ var settings = {
 	}
 }
 
+func _ensure_settings_dir():
+	var dir = Directory.new()
+	if not dir.dir_exists(tempDirPath):
+		if dir.make_dir_recursive(tempDirPath) != OK:
+			push_warning("[YHMA] Couldn't make settings directory: " + tempDirPath)
+
 func _enter_tree():
+	_ensure_settings_dir()
 	_get_settings()
 	var plugin_config = ConfigFile.new()
 	if plugin_config.load("res://addons/YHMA/plugin.cfg") != OK:
 		printerr("[YHMA] Could not read plugin config file")
 	
-	tempDirPath = "C:/temp/YHMA"
 	PLUGIN_VERSION = plugin_config.get_value("plugin", "version", "0.0.0")
 
 func _ready():
 	var dir = Directory.new()
-	if not dir.dir_exists(tempDirPath):
-		dir.open("C:/temp")
-		if not dir.make_dir("YHMA") == OK:
-			push_warning("[YHMA] Couldn't make temp directory")
+	_ensure_settings_dir()
 	
 	if dir.file_exists("res://addons/YHMA/settings.json"):
 		dir.remove("res://addons/YHMA/settings.json")
