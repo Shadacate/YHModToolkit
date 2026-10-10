@@ -20,8 +20,10 @@ you want them.
 - Moves: pick a kind of move (melee or projectile), fill in a form made from the
   toolkit's pattern, and add it to the selected character. Each setting shows its
   default and what it does; hover over it for the full explanation.
+- Game moves: pick one of the game's own characters and one of its moves, and read its
+  settings and hitboxes with each one explained. Read-only; a reference for your own moves.
 
-Not built yet: editing an existing move, installing the zip into the game.
+Not built yet: starting a new move from a game move, editing an existing move, installing the zip into the game.
 
 ## Requirements
 
